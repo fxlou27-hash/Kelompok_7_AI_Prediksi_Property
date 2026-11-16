@@ -1,12 +1,17 @@
+#Import
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
-
+from xgboost import XGBRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
 house = pd.read_csv("Data_Harga_Rumah_Surabaya.csv")
 
+#Preprocessing
 print("Shape:", house.shape)
 print("\nStatistik target Price:")
 print(house["Price"].describe())
@@ -51,10 +56,83 @@ house_clean['Rasio_Bangunan_Tanah'] = house_clean['Luas Bangunan'] / house_clean
 features = ['Luas Bangunan', 'Luas Tanah', 'Kamar Tidur', 'Kamar Mandi', 'Jumlah Lantai', 'Rasio_Bangunan_Tanah']
 target = 'Price'
 
-X_h = house[features]
-y_h = np.log1p(house["SalePrice"])
+X = house_clean[features]
+y = np.log1p(house_clean["Price"])
 
-X_h_train, X_h_test, y_h_train, y_h_test = train_test_split(
-    X_h, y_h, test_size=0.2, random_state=42
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
 )
-print(f"Train: {X_h_train.shape[0]} | Test: {X_h_test.shape[0]}")
+print(f"Train: {X_train.shape[0]} | Test: {X_test.shape[0]}")
+
+#Training
+RandomForest = Pipeline(steps=[
+    ('scaler', StandardScaler()),
+    ('model', RandomForestRegressor())
+])
+
+XGBoost = Pipeline(steps=[
+    ('scaler', StandardScaler()),
+    ('model', XGBRegressor())
+])
+
+RandomForest.fit(X_train, y_train)
+XGBoost.fit(X_train, y_train)
+
+RandomForest_pred = RandomForest.predict(X_test)
+XGBoost_pred = XGBoost.predict(X_test)
+
+#Evaluasi 
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import numpy as np
+
+
+mae_log = mean_absolute_error(y_test, RandomForest_pred)
+rmse_log = np.sqrt(mean_squared_error(y_test, RandomForest_pred))
+r2_log = r2_score(y_test, RandomForest_pred)
+
+print("Random Forest (Log)")
+print(f"MAE: {mae_log:.4f}")
+print(f"RMSE: {rmse_log:.4f}")
+print(f"R2 Score: {r2_log:.4f}\n")
+
+mae_log = mean_absolute_error(y_test, XGBoost_pred)
+rmse_log = np.sqrt(mean_squared_error(y_test, XGBoost_pred))
+r2_log = r2_score(y_test, XGBoost_pred)
+
+print("XGBoost (Log)")
+print(f"MAE: {mae_log:.4f}")
+print(f"RMSE: {rmse_log:.4f}")
+print(f"R2 Score: {r2_log:.4f}\n")
+
+rf_importances = RandomForest.named_steps['model'].feature_importances_
+xgb_importances = XGBoost.named_steps['model'].feature_importances_
+
+rf_importance_series = pd.Series(rf_importances, index=features)
+xgb_importance_series = pd.Series(xgb_importances, index=features)
+
+print(f"Random Forest (Importance): \n{rf_importance_series}\n")
+print(f"XGBoost (Importance): \n{xgb_importance_series}\n")
+
+rf_importance_series.sort_values().plot(kind='barh')
+
+plt.title('Feature Importances (Random Forest Model)', fontsize=14, fontweight='bold', pad=15)
+plt.xlabel('Importance Score', fontsize=12, labelpad=10)
+plt.ylabel('Features', fontsize=12, labelpad=10)
+
+xgb_importance_series.sort_values().plot(kind='barh')
+
+#Visualisasi
+plt.figure()
+plt.title('Actual vs Predicted (Random Forest Model)', fontsize=14, fontweight='bold', pad=15)
+plt.scatter(y_test, RandomForest_pred, color='orange')
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='black')
+plt.xlabel('Actual')
+plt.ylabel('Predicted')
+plt.show()
+
+plt.title('Actual vs Predicted (XGBoost Model)', fontsize=14, fontweight='bold', pad=15)
+plt.scatter(y_test, XGBoost_pred, color='orange')
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='black')
+plt.xlabel('Actual')
+plt.ylabel('Predicted')
+plt.show()

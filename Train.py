@@ -44,17 +44,43 @@ house_clean['Price'] = house_clean['Price'].replace('[^0-9]', '', regex=True).as
 house_clean['Luas Bangunan'] = house_clean['Luas Bangunan'].replace('[^0-9]', '', regex=True).astype(float)
 house_clean['Luas Tanah'] = house_clean['Luas Tanah'].replace('[^0-9]', '', regex=True).astype(float)
 
-for col in ['Kamar Tidur', 'Kamar Mandi', 'Jumlah Lantai']:
+for col in ['Kamar Tidur', 'Kamar Mandi', 'Daya Listrik']:
     house_clean[col] = pd.to_numeric(house_clean[col], errors='coerce')
 
 
-house_clean = house_clean.dropna(subset=['Price', 'Luas Bangunan', 'Luas Tanah', 'Kamar Tidur', 'Kamar Mandi', 'Jumlah Lantai'])
+mean_daya = house_clean['Daya Listrik'].mean()
+house_clean['Daya Listrik'] = house_clean['Daya Listrik'].fillna(mean_daya)
+print(f"Mean Daya Listrik: {mean_daya:.2f}")
+
+house_clean = house_clean.dropna(subset=['Price', 'Luas Bangunan', 'Luas Tanah', 'Kamar Tidur', 'Kamar Mandi'])
 
 
 house_clean['Rasio_Bangunan_Tanah'] = house_clean['Luas Bangunan'] / house_clean['Luas Tanah']
 
-features = ['Luas Bangunan', 'Luas Tanah', 'Kamar Tidur', 'Kamar Mandi', 'Jumlah Lantai', 'Rasio_Bangunan_Tanah']
+features = ['Luas Bangunan', 'Luas Tanah', 'Kamar Tidur', 'Kamar Mandi', 'Daya Listrik', 'Rasio_Bangunan_Tanah']
 target = 'Price'
+
+missing = (
+    house.isnull()
+      .sum()
+      .sort_values(ascending=False)
+      .reset_index()
+)
+
+missing.columns = ["Kolom","Missing"]
+
+missing.head(15)
+
+plt.figure(figsize=(12,6))
+
+sns.barplot(
+    data=missing[missing["Missing"]>0],
+    x="Missing",
+    y="Kolom"
+)
+
+plt.title("Jumlah Missing Value")
+plt.show()
 
 X = house_clean[features]
 y = np.log1p(house_clean["Price"])
@@ -63,7 +89,6 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 print(f"Train: {X_train.shape[0]} | Test: {X_test.shape[0]}")
-
 #Training
 RandomForest = Pipeline(steps=[
     ('scaler', StandardScaler()),

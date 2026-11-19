@@ -136,3 +136,9 @@ plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='blac
 plt.xlabel('Actual')
 plt.ylabel('Predicted')
 plt.show()
+
+joblib.dump(RandomForest, "RandomForest_model.pkl")
+print("Model disimpan k eRandomForesn_model.pkl")
+
+
+joblib.dump(features, "feature_names.pkl")
